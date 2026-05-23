@@ -8,7 +8,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { schemaActualite } from '@/lib/validations'
 import type { CategorieActualite } from '@prisma/client'
-
+export const dynamic = 'force-dynamic'
 interface Contexte { params: { id: string } }
 
 export async function PUT(req: NextRequest, { params }: Contexte) {
@@ -54,3 +54,4 @@ export async function DELETE(req: NextRequest, { params }: Contexte) {
     return NextResponse.json({ erreur: 'Introuvable' }, { status: 404 })
   }
 }
+

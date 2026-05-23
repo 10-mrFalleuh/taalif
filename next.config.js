@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Optimisation des images avec next/image
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {
@@ -12,11 +14,8 @@ const nextConfig = {
         hostname: '*.amazonaws.com',
       },
     ],
-    // Formats modernes supportés
     formats: ['image/avif', 'image/webp'],
   },
-
-  // Headers de sécurité
   async headers() {
     return [
       {

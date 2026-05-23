@@ -4,7 +4,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Upload, X, Save, Trash2 } from 'lucide-react'
 import { afficherToast } from '@/components/ui/toaster'
 import type { Taalif } from '@prisma/client'
 

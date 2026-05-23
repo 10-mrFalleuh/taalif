@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 // API Route – Actualités
 // GET  /api/actualites  → liste paginée (auth)
 // POST /api/actualites  → créer (ADMIN)

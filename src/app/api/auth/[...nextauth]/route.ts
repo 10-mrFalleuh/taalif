@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 // Route NextAuth – gestion de toutes les actions d'auth
 
 import NextAuth from 'next-auth'

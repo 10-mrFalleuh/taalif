@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 // API Route – Paramètres admin
 // GET /api/admin/parametres
 // PUT /api/admin/parametres

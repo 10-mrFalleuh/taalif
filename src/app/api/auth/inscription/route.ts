@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 // API Route – Inscription d'un nouvel utilisateur
 // POST /api/auth/inscription
 

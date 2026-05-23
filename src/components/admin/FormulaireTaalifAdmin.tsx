@@ -32,6 +32,7 @@ export function FormulaireTaalifAdmin({ taalif }: PropsFormulaire) {
     texteFr: taalif?.texteFr ?? '',
     format: taalif?.format ?? 'TEXTE',
     fichierUrl: taalif?.fichierUrl ?? '',
+    imageUrl: taalif?.imageUrl ?? '',
     auteur: taalif?.auteur ?? 'Cheikh Ahmadou Kara Mbacké',
     theme: taalif?.theme ?? '',
     tags: taalif?.tags.join(', ') ?? '',

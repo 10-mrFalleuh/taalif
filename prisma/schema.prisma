@@ -1,0 +1,147 @@
+// Schéma Prisma pour la plateforme TAALIF
+// Gestion des poèmes (taalifs), actualités, utilisateurs et paramètres
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enumérations ───────────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum FormatTaalif {
+  TEXTE
+  AUDIO
+  VIDEO
+}
+
+enum CategorieActualite {
+  ARTICLE
+  EVENEMENT
+  ANNONCE
+}
+
+// ─── Modèle Utilisateur ─────────────────────────────────────────
+
+model User {
+  id                String    @id @default(cuid())
+  nom               String
+  email             String    @unique
+  motDePasse        String
+  role              Role      @default(USER)
+  emailVerifie      Boolean   @default(false)
+  tokenVerification String?   @unique
+  tokenExpiration   DateTime?
+  tokenReset        String?   @unique
+  tokenResetExp     DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Sessions NextAuth
+  sessions          Session[]
+  accounts          Account[]
+
+  @@map("users")
+}
+
+// ─── Modèles NextAuth ───────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─── Modèle Taalif (Poème) ──────────────────────────────────────
+
+model Taalif {
+  id             String       @id @default(cuid())
+  titreWolof     String       // Titre en wolof/arabe
+  titreFr        String       // Titre en français
+  texteWolof     String?      @db.Text // Texte complet en wolof
+  texteFr        String?      @db.Text // Traduction française
+  format         FormatTaalif // TEXTE | AUDIO | VIDEO
+  fichierUrl     String?      // URL du fichier audio/vidéo
+  imageUrl       String?      // Image de couverture générée
+  auteur         String       @default("Cheikh Ahmadou Kara Mbacké")
+  theme          String?      // Thème principal du taalif
+  tags           String[]     // Tags pour la recherche
+  nbTelechargements Int       @default(0)
+  estTaalifDuJour Boolean     @default(false)
+  dateCreation   DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("taalifs")
+}
+
+// ─── Modèle Actualité ───────────────────────────────────────────
+
+model Actualite {
+  id         String             @id @default(cuid())
+  titre      String
+  contenu    String             @db.Text
+  imageUrl   String?
+  categorie  CategorieActualite @default(ARTICLE)
+  publiee    Boolean            @default(false)
+  dateEvent  DateTime?          // Pour les événements
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@map("actualites")
+}
+
+// ─── Paramètres de la plateforme ────────────────────────────────
+
+model Parametre {
+  id                    String   @id @default(cuid())
+  nomMouvement          String   @default("Mouvement Mondial Mame Cheikh")
+  descriptionMouvement  String   @db.Text @default("Un mouvement spirituel dédié à la diffusion de l'enseignement de Serigne Touba")
+  imageMouvement        String?
+  taalifDuJourId        String?  // ID du taalif sélectionné manuellement
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("parametres")
+}

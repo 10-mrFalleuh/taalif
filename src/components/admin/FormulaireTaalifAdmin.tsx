@@ -4,6 +4,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Loader2, Upload, X, Save, Trash2 } from 'lucide-react'
 import { afficherToast } from '@/components/ui/toaster'
 import type { Taalif } from '@prisma/client'
 
@@ -31,7 +32,6 @@ export function FormulaireTaalifAdmin({ taalif }: PropsFormulaire) {
     texteFr: taalif?.texteFr ?? '',
     format: taalif?.format ?? 'TEXTE',
     fichierUrl: taalif?.fichierUrl ?? '',
-    imageUrl: taalif?.imageUrl ?? '',
     auteur: taalif?.auteur ?? 'Cheikh Ahmadou Kara Mbacké',
     theme: taalif?.theme ?? '',
     tags: taalif?.tags.join(', ') ?? '',

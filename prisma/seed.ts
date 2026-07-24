@@ -176,8 +176,8 @@ La plateforme TAALIF mettra à disposition une sélection spéciale de taalifs p
   console.log('🎉 Seed terminé avec succès!')
   console.log('')
   console.log('📋 Identifiants Admin:')
-  console.log('   Email    : admin@taalif.sn')
-  console.log('   Mot de passe: Admin@Taalif2024!')
+  console.log(`   Email       : ${identifiants.email}`)
+  console.log('   Mot de passe: celui fourni via SEED_ADMIN_PASSWORD')
 }
 
 main()

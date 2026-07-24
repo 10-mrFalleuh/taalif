@@ -6,18 +6,42 @@ import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+// Identifiants de l'administrateur initial.
+//
+// En production, ils DOIVENT venir de l'environnement : aucun mot de passe
+// n'est codé en dur dans un dépôt public. Les valeurs de repli ne servent
+// qu'au développement local, pour ne pas alourdir le démarrage.
+function lireIdentifiantsAdmin() {
+  const enProd = process.env.NODE_ENV === 'production'
+  const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@taalif.sn'
+  const motDePasse = process.env.SEED_ADMIN_PASSWORD ?? (enProd ? '' : 'Admin@Taalif2024!')
+
+  if (enProd && !process.env.SEED_ADMIN_PASSWORD) {
+    throw new Error(
+      'SEED_ADMIN_PASSWORD est requis pour seeder en production. ' +
+        'Définissez SEED_ADMIN_EMAIL et SEED_ADMIN_PASSWORD avant de lancer le seed.'
+    )
+  }
+  if (motDePasse.length < 8) {
+    throw new Error('SEED_ADMIN_PASSWORD doit contenir au moins 8 caractères.')
+  }
+
+  return { email: email.toLowerCase(), motDePasse }
+}
+
 async function main() {
   console.log('🌱 Démarrage du seed...')
 
   // ─── Création de l'administrateur ───────────────────────────────
-  const motDePasseHashe = await bcrypt.hash('Admin@Taalif2024!', 12)
+  const identifiants = lireIdentifiantsAdmin()
+  const motDePasseHashe = await bcrypt.hash(identifiants.motDePasse, 12)
 
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@taalif.sn' },
+    where: { email: identifiants.email },
     update: {},
     create: {
       nom: 'Administrateur TAALIF',
-      email: 'admin@taalif.sn',
+      email: identifiants.email,
       motDePasse: motDePasseHashe,
       role: 'ADMIN',
       emailVerifie: true, // Admin directement vérifié

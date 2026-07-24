@@ -164,16 +164,21 @@ fonctionnement correct en production (uploads persistants, rate limiting réel).
 ## 8. Créer le compte administrateur
 
 Les migrations créent les tables mais pas les données. Lancez le seed **une
-fois**, depuis votre machine, en pointant sur la base de production :
+fois**, depuis votre machine, en pointant sur la base de production. Le mot de
+passe de l'admin est fourni par variable d'environnement — **rien n'est en dur
+dans le code**, et en production le seed refuse de tourner sans lui :
 
 ```bash
-DATABASE_URL="<url-pooled-neon>" DIRECT_URL="<url-directe-neon>" npm run db:seed
+DATABASE_URL="<url-pooled-neon>" \
+DIRECT_URL="<url-directe-neon>" \
+NODE_ENV="production" \
+SEED_ADMIN_EMAIL="vous@votre-domaine" \
+SEED_ADMIN_PASSWORD="<un mot de passe fort, min. 8 caractères>" \
+npm run db:seed
 ```
 
-> ⚠️ **Changez le mot de passe admin par défaut.** Le seed crée
-> `admin@taalif.sn` avec un mot de passe connu (`prisma/seed.ts`). Avant de
-> lancer la commande, remplacez-le dans le fichier, ou faites immédiatement un
-> « mot de passe oublié » depuis l'app pour le réinitialiser.
+> Notez l'identifiant et le mot de passe choisis : ils servent à la première
+> connexion admin. Vous pourrez ensuite le changer via « mot de passe oublié ».
 
 ---
 

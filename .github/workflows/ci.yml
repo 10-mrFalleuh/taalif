@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Une seule exécution par branche : un nouveau push annule la précédente.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifications:
+    name: Types, lint, tests, build
+    runs-on: ubuntu-latest
+
+    env:
+      # Aucune de ces valeurs n'est un secret : depuis le passage des pages en
+      # rendu à la demande, le build ne se connecte plus à la base. Ces
+      # variables existent seulement parce que Prisma et NextAuth exigent
+      # qu'elles soient définies et syntaxiquement valides.
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci_sans_connexion
+      NEXTAUTH_SECRET: secret-factice-reserve-a-la-ci
+      NEXTAUTH_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      # .npmrc fixe legacy-peer-deps (cf. le pair nodemailer de next-auth@4)
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Générer le client Prisma
+        run: npx prisma generate
+
+      - name: Vérifier les types
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests unitaires
+        run: npm test
+
+      - name: Build de production
+        run: npm run build
+
+  migrations:
+    name: Cohérence du schéma Prisma
+    runs-on: ubuntu-latest
+
+    # Garantit que les migrations versionnées reconstruisent bien le schéma
+    # décrit par schema.prisma : sans ce contrôle, une édition du schéma sans
+    # migration correspondante passerait inaperçue jusqu'au déploiement.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: taalif_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taalif_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Appliquer les migrations sur une base vierge
+        run: npx prisma migrate deploy
+
+      - name: Vérifier l'absence de dérive entre migrations et schéma
+        run: npx prisma migrate diff
+          --from-url "$DATABASE_URL"
+          --to-schema-datamodel prisma/schema.prisma
+          --exit-code

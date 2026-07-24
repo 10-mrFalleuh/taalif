@@ -138,6 +138,9 @@ npm run dev          # Serveur de développement (hot reload)
 npm run build        # Build de production
 npm run start        # Démarrer en production
 npm run lint         # ESLint
+npm test             # Tests unitaires (Vitest)
+npm run test:watch   # Tests en mode surveillance
+npm run verifier     # Types + lint + tests — la même chaîne que la CI
 npm run db:generate     # Générer le client Prisma
 npm run db:migrate      # Appliquer les migrations en attente (dev et prod)
 npm run db:migrate:dev  # Créer une migration après édition du schéma
@@ -239,12 +242,46 @@ taalif/
 - ✅ **Génération automatique** d'image de couverture SVG si aucune image fournie
 
 ### Sécurité
-- ✅ Middleware de protection des routes (auth + rôle)
+- ✅ Middleware de protection des routes (auth + rôle), rôle revalidé en base
+  toutes les 5 min — un administrateur rétrogradé perd ses droits sans attendre
+  l'expiration de son JWT
 - ✅ Validation Zod sur toutes les API
 - ✅ Hash bcrypt (coût 12) pour les mots de passe
-- ✅ Rate limiting sur l'inscription
-- ✅ Tokens cryptographiques pour email/reset (crypto.randomBytes)
+- ✅ Rate limiting sur la connexion, l'inscription et les envois d'email —
+  adossé à Upstash Redis si configuré (cf. `.env.example`), sinon compteur
+  mémoire non partagé entre instances
+- ✅ Tokens email/reset générés par `crypto.randomBytes` et stockés **hachés**
+  en SHA-256 : une lecture de la base ne permet pas de prendre un compte
+- ✅ Uploads validés par signature binaire, pas par le type MIME déclaré :
+  l'extension écrite sur disque découle du contenu réel
+- ✅ Redirections post-connexion ramenées à un chemin interne
 - ✅ Headers de sécurité (X-Frame-Options, X-Content-Type-Options)
+
+> Pas encore de CSP ni de HSTS. L'inscription reste énumérable (elle indique
+> si un email est déjà pris) ; le login, lui, ne l'est plus.
+
+---
+
+## Qualité et intégration continue
+
+`npm run verifier` enchaîne types, lint et tests — c'est exactement ce que
+GitHub Actions exécute sur chaque push et chaque pull request
+(`.github/workflows/ci.yml`), avec le build de production en plus.
+
+Deux jobs :
+
+| Job | Rôle |
+|-----|------|
+| **Types, lint, tests, build** | Aucune base requise : depuis le passage des pages en rendu à la demande, `next build` ne se connecte plus à PostgreSQL |
+| **Cohérence du schéma Prisma** | Rejoue les migrations sur une base vierge et échoue si `schema.prisma` a divergé des migrations versionnées |
+
+Les tests unitaires (Vitest, `src/**/*.test.ts`) couvrent les modules purs, en
+priorité ceux dont dépend la sécurité : sécurisation des redirections,
+détection de type de fichier par signature binaire, limiteur de débit,
+tokens à usage unique, schémas de validation Zod.
+
+> Il n'y a pas encore de tests de bout en bout. Les parcours connexion,
+> inscription et CRUD admin ne sont couverts par aucun test automatisé.
 
 ---
 

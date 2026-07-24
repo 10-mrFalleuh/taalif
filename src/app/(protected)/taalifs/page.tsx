@@ -1,7 +1,8 @@
 // Page liste des Taalifs - Server Component
 // Affiche tous les taalifs avec filtres par format, thème, date et recherche
 
-import { prisma } from '@/lib/prisma'
+import { listerTaalifs, listerThemes, LIMITE_TAALIFS_DEFAUT } from '@/lib/requetes/taalifs'
+import type { TriTaalif } from '@/lib/requetes/taalifs'
 import { CardTaalif } from '@/components/taalif/CardTaalif'
 import { FiltresTaalifsClient } from '@/components/taalif/FiltresTaalifsClient'
 import { Pagination } from '@/components/ui/Pagination'
@@ -13,8 +14,6 @@ export const metadata: Metadata = {
   title: 'Tous les Taalifs',
   description: 'Explorez tous les poèmes (taalifs) de Cheikh Ahmadou Kara Mbacké.',
 }
-
-const LIMITE_PAR_PAGE = 12
 
 interface Props {
   searchParams: {
@@ -28,60 +27,20 @@ interface Props {
 
 export default async function PageTaalifs({ searchParams }: Props) {
   const page = Math.max(1, parseInt(searchParams.page ?? '1'))
-  const format = searchParams.format as FormatTaalif | undefined
+  const format = ['TEXTE', 'AUDIO', 'VIDEO'].includes(searchParams.format ?? '')
+    ? (searchParams.format as FormatTaalif)
+    : undefined
   const theme = searchParams.theme
   const q = searchParams.q
-  const tri = searchParams.tri ?? 'date_desc'
+  const tri = (searchParams.tri ?? 'date_desc') as TriTaalif
 
-  // Construction du filtre Prisma
-  const where: Record<string, unknown> = {}
-
-  if (format && ['TEXTE', 'AUDIO', 'VIDEO'].includes(format)) {
-    where.format = format
-  }
-
-  if (theme) {
-    where.theme = { contains: theme, mode: 'insensitive' }
-  }
-
-  if (q) {
-    where.OR = [
-      { titreFr: { contains: q, mode: 'insensitive' } },
-      { titreWolof: { contains: q, mode: 'insensitive' } },
-      { texteFr: { contains: q, mode: 'insensitive' } },
-      { texteWolof: { contains: q, mode: 'insensitive' } },
-      { theme: { contains: q, mode: 'insensitive' } },
-    ]
-  }
-
-  // Ordre de tri
-  const orderBy: Record<string, string> =
-    tri === 'date_asc'
-      ? { dateCreation: 'asc' }
-      : tri === 'titre_asc'
-      ? { titreFr: 'asc' }
-      : { dateCreation: 'desc' }
-
-  // Récupération paginée
-  const [taalifs, total, themes] = await Promise.all([
-    prisma.taalif.findMany({
-      where,
-      orderBy,
-      skip: (page - 1) * LIMITE_PAR_PAGE,
-      take: LIMITE_PAR_PAGE,
-    }),
-    prisma.taalif.count({ where }),
-    // Liste des thèmes distincts pour le filtre
-    prisma.taalif.findMany({
-      select: { theme: true },
-      where: { theme: { not: null } },
-      distinct: ['theme'],
-      orderBy: { theme: 'asc' },
-    }),
+  const [
+    { elements: taalifs, total, totalPages },
+    listeThemes,
+  ] = await Promise.all([
+    listerTaalifs({ format, theme, q, tri, page, limite: LIMITE_TAALIFS_DEFAUT }),
+    listerThemes(),
   ])
-
-  const totalPages = Math.ceil(total / LIMITE_PAR_PAGE)
-  const listeThemes = themes.map((t) => t.theme).filter(Boolean) as string[]
 
   return (
     <div className="min-h-screen bg-gray-50">

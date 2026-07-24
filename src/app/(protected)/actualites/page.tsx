@@ -1,6 +1,10 @@
 // Page Actualités - Server Component
 
-import { prisma } from '@/lib/prisma'
+import {
+  listerActualites,
+  normaliserCategorie,
+  LIMITE_ACTUALITES_DEFAUT,
+} from '@/lib/requetes/actualites'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -14,7 +18,7 @@ export const metadata: Metadata = {
   description: 'Articles, événements et annonces du mouvement mouridiya.',
 }
 
-const LIMITE = 9
+const LIMITE = LIMITE_ACTUALITES_DEFAUT
 
 const CATEGORIES: { valeur: CategorieActualite | 'TOUTES'; label: string; emoji: string }[] = [
   { valeur: 'TOUTES', label: 'Toutes', emoji: '📋' },
@@ -29,26 +33,13 @@ interface Props {
 
 export default async function PageActualites({ searchParams }: Props) {
   const page = Math.max(1, parseInt(searchParams.page ?? '1'))
-  const categorie = searchParams.categorie as CategorieActualite | undefined
+  const categorie = normaliserCategorie(searchParams.categorie)
 
-  const where = {
-    publiee: true,
-    ...(categorie && ['ARTICLE', 'EVENEMENT', 'ANNONCE'].includes(categorie)
-      ? { categorie }
-      : {}),
-  }
-
-  const [actualites, total] = await Promise.all([
-    prisma.actualite.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * LIMITE,
-      take: LIMITE,
-    }),
-    prisma.actualite.count({ where }),
-  ])
-
-  const totalPages = Math.ceil(total / LIMITE)
+  const { elements: actualites, total, totalPages } = await listerActualites({
+    categorie,
+    page,
+    limite: LIMITE,
+  })
 
   const couleurCategorie = {
     ARTICLE: 'bg-blue-100 text-blue-700',

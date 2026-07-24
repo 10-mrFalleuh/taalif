@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { schemaActualite } from '@/lib/validations'
+import { listerActualites, normaliserCategorie } from '@/lib/requetes/actualites'
 import type { CategorieActualite } from '@prisma/client'
 
 export async function GET(req: NextRequest) {
@@ -15,26 +16,14 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
 
   const { searchParams } = req.nextUrl
-  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
-  const limite = 9
-  const categorie = searchParams.get('categorie') as CategorieActualite | null
 
-  const where = {
-    publiee: true,
-    ...(categorie ? { categorie } : {}),
-  }
+  // Même construction de requête que la page /actualites
+  const resultat = await listerActualites({
+    categorie: normaliserCategorie(searchParams.get('categorie')),
+    page: Math.max(1, parseInt(searchParams.get('page') ?? '1')),
+  })
 
-  const [elements, total] = await Promise.all([
-    prisma.actualite.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limite,
-      take: limite,
-    }),
-    prisma.actualite.count({ where }),
-  ])
-
-  return NextResponse.json({ elements, total, page, totalPages: Math.ceil(total / limite) })
+  return NextResponse.json(resultat)
 }
 
 export async function POST(req: NextRequest) {

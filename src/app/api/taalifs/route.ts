@@ -7,6 +7,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { schemaTaalif, schemaFiltreTaalif } from '@/lib/validations'
+import { listerTaalifs } from '@/lib/requetes/taalifs'
 import { genererImageCouvertureSvg } from '@/lib/utils'
 import type { FormatTaalif } from '@prisma/client'
 
@@ -23,36 +24,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ erreur: 'Paramètres invalides' }, { status: 400 })
   }
 
-  const { format, theme, q, page, limite, tri } = validation.data
+  // Même construction de requête que la page /taalifs (lib/requetes/taalifs)
+  const resultat = await listerTaalifs(validation.data)
 
-  const where: Record<string, unknown> = {}
-  if (format) where.format = format as FormatTaalif
-  if (theme) where.theme = { contains: theme, mode: 'insensitive' }
-  if (q) {
-    where.OR = [
-      { titreFr: { contains: q, mode: 'insensitive' } },
-      { titreWolof: { contains: q, mode: 'insensitive' } },
-      { texteFr: { contains: q, mode: 'insensitive' } },
-    ]
-  }
-
-  const orderBy =
-    tri === 'date_asc' ? { dateCreation: 'asc' as const }
-    : tri === 'titre_asc' ? { titreFr: 'asc' as const }
-    : { dateCreation: 'desc' as const }
-
-  const [elements, total] = await Promise.all([
-    prisma.taalif.findMany({ where, orderBy, skip: (page - 1) * limite, take: limite }),
-    prisma.taalif.count({ where }),
-  ])
-
-  return NextResponse.json({
-    elements,
-    total,
-    page,
-    totalPages: Math.ceil(total / limite),
-    limite,
-  })
+  return NextResponse.json(resultat)
 }
 
 // ─── POST : créer un taalif ────────────────────────────────────────

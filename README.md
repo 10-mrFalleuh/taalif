@@ -295,23 +295,13 @@ tokens à usage unique, schémas de validation Zod.
 
 ## Déploiement sur Vercel
 
-```bash
-# Installer Vercel CLI
-npm i -g vercel
+La procédure complète — Neon (PostgreSQL), Cloudinary (fichiers), Upstash
+(rate limiting), variables d'environnement, migrations automatiques et création
+de l'admin — est décrite dans **[DEPLOIEMENT.md](DEPLOIEMENT.md)**.
 
-# Déployer
-vercel
-
-# Variables d'environnement à configurer dans le dashboard Vercel :
-# - DATABASE_URL (utiliser Supabase, Neon, ou Railway pour PostgreSQL)
-# - NEXTAUTH_SECRET
-# - NEXTAUTH_URL (votre domaine de production)
-# - Variables email
-```
-
-Pour le stockage de fichiers en production, décommenter et configurer dans `.env` :
-- **Cloudinary** : idéal pour images et vidéos
-- **AWS S3** : alternative robuste pour tous types de fichiers
+Le dépôt est déjà configuré pour Vercel : `postinstall` régénère le client
+Prisma, et le script `vercel-build` applique les migrations
+(`prisma migrate deploy`) avant chaque build.
 
 ---
 

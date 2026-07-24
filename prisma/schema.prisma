@@ -7,7 +7,14 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // Runtime : connexion « pooled » (obligatoire en serverless, sinon les
+  // connexions à la base sont vite épuisées).
   url      = env("DATABASE_URL")
+  // Migrations / introspection : connexion directe. Un pooler en mode
+  // transaction (Neon, PgBouncer) ne supporte pas les verrous d'avis dont
+  // `prisma migrate` a besoin. En local, DIRECT_URL vaut la même chose que
+  // DATABASE_URL.
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Enumérations ───────────────────────────────────────────────

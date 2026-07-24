@@ -21,6 +21,7 @@ jobs:
       # variables existent seulement parce que Prisma et NextAuth exigent
       # qu'elles soient définies et syntaxiquement valides.
       DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci_sans_connexion
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/ci_sans_connexion
       NEXTAUTH_SECRET: secret-factice-reserve-a-la-ci
       NEXTAUTH_URL: http://localhost:3000
 
@@ -73,7 +74,9 @@ jobs:
           --health-retries 5
 
     env:
+      # Postgres direct en CI (pas de pooler) : les deux URL sont identiques.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taalif_ci
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/taalif_ci
 
     steps:
       - uses: actions/checkout@v4

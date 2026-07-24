@@ -103,7 +103,8 @@ export default async function PageAccueil() {
                 href="/actualites"
                 className="inline-flex items-center gap-2 px-8 py-4 bg-vert-800/50 text-white font-medium rounded-xl hover:bg-vert-800/70 transition-all border border-white/20"
               >
-                Actualités du mouvement
+                Actualités de la Coalition
+                <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           </div>

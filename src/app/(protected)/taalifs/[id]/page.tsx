@@ -148,6 +148,7 @@ export default async function PageDetailTaalif({ params }: Props) {
                 titre={taalif.titreFr}
                 auteur={taalif.auteur}
                 taalifId={taalif.id}
+                nbTelechargements={taalif.nbTelechargements}
               />
               {/* Afficher aussi le texte si disponible */}
               {(taalif.texteWolof || taalif.texteFr) && (
@@ -169,6 +170,7 @@ export default async function PageDetailTaalif({ params }: Props) {
                 titre={taalif.titreFr}
                 taalifId={taalif.id}
                 poster={taalif.imageUrl ?? undefined}
+                nbTelechargements={taalif.nbTelechargements}
               />
               {/* Afficher aussi le texte si disponible */}
               {(taalif.texteWolof || taalif.texteFr) && (

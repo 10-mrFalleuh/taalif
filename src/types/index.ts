@@ -1,6 +1,6 @@
 // Types TypeScript partagés dans l'application
 
-import type { Taalif, Actualite, User, Parametre, FormatTaalif, CategorieActualite, Role } from '@prisma/client'
+import type { Taalif, Actualite, User, FormatTaalif, CategorieActualite, Role } from '@prisma/client'
 
 // ─── Re-exports Prisma ─────────────────────────────────────────────
 export type { FormatTaalif, CategorieActualite, Role }

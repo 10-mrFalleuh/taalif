@@ -86,3 +86,37 @@ export function detecterType(buffer: Buffer): TypeDetecte | null {
 
   return null
 }
+
+/** Retire les caractères qu'un système de fichiers refuse dans un nom. */
+function assainirNom(nom: string): string {
+  return (
+    nom
+      .replace(/[/\\?%*:|"<>]/g, '') // caractères interdits
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 100) || 'taalif'
+  )
+}
+
+/**
+ * Nom de fichier proposé au téléchargement : le titre, suivi de l'extension
+ * réelle déduite de l'URL du fichier.
+ *
+ * Corrige un défaut où l'extension était codée en dur (« .mp3 »/« .mp4 »)
+ * alors que les fichiers servis sont souvent des .opus ou .webm : le
+ * téléchargement portait un nom mensonger.
+ */
+export function nomTelechargement(url: string, titre: string): string {
+  let extension = ''
+  try {
+    // L'URL peut être relative (/uploads/...) ou absolue (Cloudinary)
+    const chemin = new URL(url, 'http://local').pathname
+    const dernierSegment = chemin.split('/').pop() ?? ''
+    const point = dernierSegment.lastIndexOf('.')
+    if (point > 0) extension = dernierSegment.slice(point).toLowerCase()
+  } catch {
+    /* URL inexploitable : on renvoie le titre sans extension */
+  }
+
+  return assainirNom(titre) + extension
+}

@@ -54,7 +54,6 @@ export default async function PageAccueil() {
   const compteTexte = stats.find((s) => s.format === 'TEXTE')?._count.id ?? 0
   const compteAudio = stats.find((s) => s.format === 'AUDIO')?._count.id ?? 0
   const compteVideo = stats.find((s) => s.format === 'VIDEO')?._count.id ?? 0
-  const totalTaalifs = compteTexte + compteAudio + compteVideo
 
   return (
     <div className="min-h-screen">

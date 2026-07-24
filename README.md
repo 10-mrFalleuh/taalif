@@ -255,10 +255,18 @@ taalif/
 - ✅ Uploads validés par signature binaire, pas par le type MIME déclaré :
   l'extension écrite sur disque découle du contenu réel
 - ✅ Redirections post-connexion ramenées à un chemin interne
-- ✅ Headers de sécurité (X-Frame-Options, X-Content-Type-Options)
+- ✅ Suppression d'un taalif : nettoyage du fichier média et de l'image
+  associés (best-effort, local ou Cloudinary)
+- ✅ En-têtes de sécurité : Content-Security-Policy, HSTS (en production),
+  X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
 
-> Pas encore de CSP ni de HSTS. L'inscription reste énumérable (elle indique
-> si un email est déjà pris) ; le login, lui, ne l'est plus.
+> La CSP conserve `script-src 'unsafe-inline'` : sans infrastructure de nonce,
+> les scripts d'hydratation de Next seraient bloqués. Elle reste une défense
+> en profondeur (le vecteur de XSS par upload est déjà fermé à la source). Un
+> durcissement par nonce est le prochain palier.
+>
+> L'inscription reste énumérable (elle indique si un email est déjà pris) ;
+> le login, lui, ne l'est plus.
 
 ---
 

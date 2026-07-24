@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { detecterType } from './fichiers'
+import { detecterType, nomTelechargement } from './fichiers'
 
 /** Construit un tampon à partir d'octets, complété pour dépasser les décalages lus. */
 function entete(...octets: number[]): Buffer {
@@ -84,5 +84,33 @@ describe('detecterType – contenus rejetés', () => {
   it('rejette un contenu vide ou tronqué', () => {
     expect(detecterType(Buffer.alloc(0))).toBeNull()
     expect(detecterType(Buffer.from([0xff]))).toBeNull()
+  })
+})
+
+describe('nomTelechargement', () => {
+  it('reprend l\'extension réelle du fichier, pas une extension figée', () => {
+    // Le défaut corrigé : un .opus téléchargé sous le nom « .mp3 »
+    expect(nomTelechargement('/uploads/audio/123-abc.opus', 'Xam Xam bi'))
+      .toBe('Xam Xam bi.opus')
+    expect(nomTelechargement('/uploads/video/9-x.webm', 'Touba'))
+      .toBe('Touba.webm')
+  })
+
+  it('gère une URL Cloudinary absolue', () => {
+    expect(
+      nomTelechargement(
+        'https://res.cloudinary.com/demo/video/upload/v1/taalif/audio/xyz.mp4',
+        'La Connaissance'
+      )
+    ).toBe('La Connaissance.mp4')
+  })
+
+  it('assainit les caractères interdits dans un nom de fichier', () => {
+    expect(nomTelechargement('/uploads/audio/x.opus', 'Titre/avec:caractères*interdits'))
+      .toBe('Titreaveccaractèresinterdits.opus')
+  })
+
+  it('retombe sur le titre seul si l\'URL n\'a pas d\'extension', () => {
+    expect(nomTelechargement('/uploads/audio/sansext', 'Poème')).toBe('Poème')
   })
 })

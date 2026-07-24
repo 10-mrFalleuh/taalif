@@ -2,18 +2,20 @@
 // Composant LecteurAudio
 // Lecteur HTML5 personnalisé avec bouton de téléchargement et compteur
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState } from 'react'
 import { Play, Pause, Download, Volume2, VolumeX, SkipBack, SkipForward } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { nomTelechargement } from '@/lib/fichiers'
 
 interface PropsLecteurAudio {
   src: string
   titre: string
   auteur?: string
   taalifId: string
+  nbTelechargements?: number
 }
 
-export function LecteurAudio({ src, titre, auteur, taalifId }: PropsLecteurAudio) {
+export function LecteurAudio({ src, titre, auteur, taalifId, nbTelechargements = 0 }: PropsLecteurAudio) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [enLecture, setEnLecture] = useState(false)
   const [progression, setProgression] = useState(0)
@@ -21,7 +23,8 @@ export function LecteurAudio({ src, titre, auteur, taalifId }: PropsLecteurAudio
   const [volume, setVolume] = useState(1)
   const [muet, setMuet] = useState(false)
   const [chargement, setChargement] = useState(true)
-  const [telechargements, setTelechargements] = useState(0)
+  // Initialisé avec la valeur réelle de la base, pas 0
+  const [telechargements, setTelechargements] = useState(nbTelechargements)
 
   // Contrôle lecture/pause
   const basculerLecture = async () => {
@@ -59,15 +62,19 @@ export function LecteurAudio({ src, titre, auteur, taalifId }: PropsLecteurAudio
   // Téléchargement avec compteur
   const telecharger = async () => {
     try {
-      // Incrémenter le compteur en base
-      await fetch(`/api/taalifs/${taalifId}/telecharger`, { method: 'POST' })
-      setTelechargements((n) => n + 1)
+      // Le compteur n'est incrémenté que si le serveur le confirme : sinon
+      // l'affichage local finissait par diverger de la base.
+      const res = await fetch(`/api/taalifs/${taalifId}/telecharger`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json().catch(() => null)
+        if (typeof data?.nbTelechargements === 'number') setTelechargements(data.nbTelechargements)
+      }
     } catch {}
-    
-    // Déclencher le téléchargement
+
+    // Déclencher le téléchargement avec l'extension réelle du fichier
     const lien = document.createElement('a')
     lien.href = src
-    lien.download = `${titre}.mp3`
+    lien.download = nomTelechargement(src, titre)
     document.body.appendChild(lien)
     lien.click()
     document.body.removeChild(lien)
@@ -194,11 +201,14 @@ export function LecteurAudio({ src, titre, auteur, taalifId }: PropsLecteurAudio
           {/* Bouton téléchargement */}
           <button
             onClick={telecharger}
+            title={`${telechargements} téléchargement${telechargements > 1 ? 's' : ''}`}
             className="flex items-center gap-2 px-4 py-2 bg-vert-600 text-white text-sm font-medium rounded-lg hover:bg-vert-700 transition-colors"
           >
             <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Télécharger MP3</span>
-            <span className="sm:hidden">MP3</span>
+            <span className="hidden sm:inline">Télécharger</span>
+            {telechargements > 0 && (
+              <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded-full">{telechargements}</span>
+            )}
           </button>
         </div>
       </div>

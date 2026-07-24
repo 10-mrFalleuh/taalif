@@ -9,7 +9,7 @@ import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Pagination } from '@/components/ui/Pagination'
-import { Newspaper, Calendar, Tag } from 'lucide-react'
+import { Newspaper, Calendar } from 'lucide-react'
 import type { Metadata } from 'next'
 import type { CategorieActualite } from '@prisma/client'
 
@@ -35,7 +35,7 @@ export default async function PageActualites({ searchParams }: Props) {
   const page = Math.max(1, parseInt(searchParams.page ?? '1'))
   const categorie = normaliserCategorie(searchParams.categorie)
 
-  const { elements: actualites, total, totalPages } = await listerActualites({
+  const { elements: actualites, totalPages } = await listerActualites({
     categorie,
     page,
     limite: LIMITE,

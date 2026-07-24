@@ -9,6 +9,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { schemaTaalif } from '@/lib/validations'
 import { genererImageCouvertureSvg } from '@/lib/utils'
+import { supprimerFichier } from '@/lib/stockage'
 import type { FormatTaalif } from '@prisma/client'
 
 interface Contexte { params: { id: string } }
@@ -81,9 +82,33 @@ export async function DELETE(req: NextRequest, { params }: Contexte) {
   if (session.user.role !== 'ADMIN') return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
 
   try {
+    // On lit les URL avant de supprimer la ligne, pour pouvoir nettoyer
+    // ensuite le fichier média et l'éventuelle image de couverture.
+    const taalif = await prisma.taalif.findUnique({
+      where: { id: params.id },
+      select: { fichierUrl: true, imageUrl: true },
+    })
+    if (!taalif) {
+      return NextResponse.json({ erreur: 'Taalif introuvable' }, { status: 404 })
+    }
+
     await prisma.taalif.delete({ where: { id: params.id } })
+
+    // Purge de la référence « taalif du jour » si elle pointait sur celui-ci :
+    // sans cela la section disparaissait silencieusement de l'accueil.
+    await prisma.parametre.updateMany({
+      where: { taalifDuJourId: params.id },
+      data: { taalifDuJourId: null },
+    })
+
+    // Nettoyage des fichiers (best-effort, ne bloque pas la réponse en cas d'échec)
+    await Promise.all([
+      supprimerFichier(taalif.fichierUrl),
+      supprimerFichier(taalif.imageUrl),
+    ])
+
     return NextResponse.json({ message: 'Taalif supprimé' })
   } catch {
-    return NextResponse.json({ erreur: 'Taalif introuvable ou erreur serveur' }, { status: 404 })
+    return NextResponse.json({ erreur: 'Erreur serveur' }, { status: 500 })
   }
 }

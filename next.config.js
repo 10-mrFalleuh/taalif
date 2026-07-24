@@ -20,7 +20,9 @@ const csp = [
   "img-src 'self' data: blob: https://res.cloudinary.com https://*.amazonaws.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "media-src 'self' https://res.cloudinary.com",
-  `connect-src 'self'${estProd ? '' : ' ws:'}`,
+  // api.cloudinary.com : upload direct navigateur → Cloudinary (voir le
+  // formulaire admin). Sans cette autorisation, la CSP bloque l'envoi.
+  `connect-src 'self' https://api.cloudinary.com${estProd ? '' : ' ws:'}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -52,56 +52,90 @@ export function FormulaireTaalifAdmin({ taalif }: PropsFormulaire) {
     if (erreurs[champ]) setErreurs((prev) => { const e = { ...prev }; delete e[champ]; return e })
   }
 
+  // Téléverse un fichier et retourne son URL.
+  //
+  // Deux chemins : en production, le navigateur envoie le fichier DIRECTEMENT à
+  // Cloudinary (via une signature obtenue du serveur), ce qui contourne la
+  // limite de ~4,5 Mo des fonctions Vercel — indispensable pour la vidéo. En
+  // local sans Cloudinary, on retombe sur /api/upload (écriture disque).
+  const televerser = async (fichier: File, type: 'audio' | 'video' | 'image'): Promise<string> => {
+    // Garde-fou de taille côté client, avant tout envoi
+    const maxMo = type === 'video' ? 100 : type === 'audio' ? 20 : 5
+    if (fichier.size > maxMo * 1024 * 1024) {
+      throw new Error(`Fichier trop volumineux. Maximum : ${maxMo} Mo`)
+    }
+
+    // 1. Demander une signature (l'endpoint vérifie le rôle admin)
+    const sigRes = await fetch('/api/upload/signature', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type }),
+    })
+    const sig = await sigRes.json()
+    if (!sigRes.ok) throw new Error(sig.erreur ?? 'Signature refusée')
+
+    // 2a. Pas de Cloudinary (dev local) → upload serveur classique
+    if (!sig.cloudinary) {
+      const data = new FormData()
+      data.append('fichier', fichier)
+      data.append('type', type)
+      const res = await fetch('/api/upload', { method: 'POST', body: data })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.erreur ?? 'Échec de l\'upload')
+      return json.url
+    }
+
+    // 2b. Upload direct vers Cloudinary
+    const data = new FormData()
+    data.append('file', fichier)
+    data.append('api_key', sig.apiKey)
+    data.append('timestamp', String(sig.timestamp))
+    data.append('signature', sig.signature)
+    data.append('folder', sig.folder)
+    data.append('public_id', sig.publicId)
+
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resourceType}/upload`,
+      { method: 'POST', body: data }
+    )
+    const json = await res.json()
+    if (!res.ok || !json.secure_url) {
+      throw new Error(json.error?.message ?? 'Échec de l\'envoi vers Cloudinary')
+    }
+    return json.secure_url as string
+  }
+
   // Upload de fichier audio/vidéo
   const gererUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fichier = e.target.files?.[0]
     if (!fichier) return
     setUploadEnCours(true)
-    const data = new FormData()
-    data.append('fichier', fichier)
-    data.append('type', formulaire.format.toLowerCase())
-
     try {
-      const res = await fetch('/api/upload', { method: 'POST', body: data })
-      const json = await res.json()
-      if (res.ok) {
-        mettreAJour('fichierUrl', json.url)
-        afficherToast('Fichier uploadé avec succès', 'succes')
-      } else {
-        afficherToast(json.erreur ?? 'Échec de l\'upload', 'erreur')
-      }
-    } catch {
-      afficherToast('Erreur réseau lors de l\'upload', 'erreur')
+      const url = await televerser(fichier, formulaire.format.toLowerCase() as 'audio' | 'video')
+      mettreAJour('fichierUrl', url)
+      afficherToast('Fichier uploadé avec succès', 'succes')
+    } catch (err) {
+      afficherToast(err instanceof Error ? err.message : 'Erreur lors de l\'upload', 'erreur')
     } finally {
       setUploadEnCours(false)
     }
   }
 
   // Upload d'image de couverture
-const gererUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const fichier = e.target.files?.[0]
-  if (!fichier) return
-
-  setUploadImageEnCours(true)
-  const data = new FormData()
-  data.append('fichier', fichier)
-  data.append('type', 'image')
-
-  try {
-    const res = await fetch('/api/upload', { method: 'POST', body: data })
-    const json = await res.json()
-    if (res.ok) {
-      mettreAJour('imageUrl', json.url)
+  const gererUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fichier = e.target.files?.[0]
+    if (!fichier) return
+    setUploadImageEnCours(true)
+    try {
+      const url = await televerser(fichier, 'image')
+      mettreAJour('imageUrl', url)
       afficherToast('Image uploadée avec succès', 'succes')
-    } else {
-      afficherToast(json.erreur ?? 'Échec de l\'upload', 'erreur')
+    } catch (err) {
+      afficherToast(err instanceof Error ? err.message : 'Erreur lors de l\'upload', 'erreur')
+    } finally {
+      setUploadImageEnCours(false)
     }
-  } catch {
-    afficherToast('Erreur réseau lors de l\'upload', 'erreur')
-  } finally {
-    setUploadImageEnCours(false)
   }
-}
 
   // Validation côté client
   const valider = (): boolean => {

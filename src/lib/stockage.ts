@@ -101,6 +101,44 @@ async function envoyerVersCloudinary(
   return resultat.secure_url
 }
 
+// ─── Upload direct (navigateur → Cloudinary) ───────────────────────
+//
+// Sur Vercel, une fonction serverless plafonne le corps de requête à ~4,5 Mo :
+// une vidéo ne peut donc pas transiter par /api/upload. Le navigateur téléverse
+// alors directement vers Cloudinary, à l'aide d'une signature générée ici (le
+// secret d'API ne quitte jamais le serveur). L'endpoint qui l'expose exige une
+// session admin.
+
+export interface SignatureUpload {
+  cloudName: string
+  apiKey: string
+  timestamp: number
+  signature: string
+  folder: string
+  publicId: string
+  resourceType: 'image' | 'video'
+}
+
+export function genererSignatureUpload(famille: FamilleFichier): SignatureUpload {
+  const timestamp = Math.floor(Date.now() / 1000)
+  const folder = `taalif/${SOUS_DOSSIER[famille]}`
+  const publicId = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`
+
+  // Mêmes paramètres signés que l'upload serveur (envoyerVersCloudinary)
+  const signature = signer({ folder, public_id: publicId, timestamp })
+
+  return {
+    cloudName: CLOUD!,
+    apiKey: CLE_API!,
+    timestamp,
+    signature,
+    folder,
+    publicId,
+    // Cloudinary classe l'audio sous la ressource « video »
+    resourceType: famille === 'image' ? 'image' : 'video',
+  }
+}
+
 // ─── Pilote local ──────────────────────────────────────────────────
 
 async function ecrireEnLocal(

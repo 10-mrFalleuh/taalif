@@ -6,6 +6,9 @@ import { formatDate } from '@/lib/utils'
 import { BoutonSupprimerActualite } from '@/components/admin/BoutonSupprimerActualite'
 import { Plus, Pencil, ArrowLeft, Newspaper } from 'lucide-react'
 
+// Rendu à la demande : la liste doit refléter les créations et suppressions.
+export const dynamic = 'force-dynamic'
+
 export default async function PageAdminActualites() {
   const actualites = await prisma.actualite.findMany({
     orderBy: { createdAt: 'desc' },

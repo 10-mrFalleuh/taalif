@@ -140,15 +140,5 @@ export function tempsLecture(texte: string): string {
   return `${minutes} min de lecture`
 }
 
-/**
- * Sécurise une URL de redirection pour éviter les redirections ouvertes
- */
-export function securiserRedirection(url: string, base: string = '/'): string {
-  try {
-    const parsed = new URL(url, 'http://localhost')
-    // On n'autorise que les chemins relatifs (même domaine)
-    return parsed.pathname + parsed.search
-  } catch {
-    return base
-  }
-}
+// securiserRedirection() a été déplacée dans lib/redirection.ts pour éviter
+// d'embarquer ce module (et son polyfill Buffer) dans les bundles clients.

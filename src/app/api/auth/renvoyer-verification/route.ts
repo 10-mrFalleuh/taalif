@@ -1,52 +1,57 @@
-// API Route – Mot de passe oublié
-// POST /api/auth/mot-de-passe-oublie
+export const dynamic = 'force-dynamic'
+// API Route – Renvoi de l'email de vérification
+// POST /api/auth/renvoyer-verification
+//
+// L'envoi à l'inscription est volontairement non bloquant : si le SMTP est
+// indisponible à cet instant, le compte est créé sans que l'email parte.
+// Sans cette route, l'utilisateur resterait bloqué définitivement.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { schemaMotDePasseOublie } from '@/lib/validations'
-import { envoyerEmailReinitialisation } from '@/lib/email'
+import { envoyerEmailVerification } from '@/lib/email'
 import { verifierLimite, extraireIp } from '@/lib/rate-limit'
 import { genererToken } from '@/lib/tokens'
 import { MSG_VERIFIEZ_VOS_EMAILS } from '@/lib/messages'
 
-const LIMITE_DEMANDES = 5
+const LIMITE_DEMANDES = 3
 const FENETRE_MS = 15 * 60 * 1000
 
 export async function POST(req: NextRequest) {
-  // Sans limite, cette route permet d'inonder d'emails une boîte tierce
   const ip = extraireIp(req.headers)
-  const limite = await verifierLimite(`mdp-oublie:${ip}`, LIMITE_DEMANDES, FENETRE_MS)
+  const limite = await verifierLimite(`renvoi-verif:${ip}`, LIMITE_DEMANDES, FENETRE_MS)
   if (!limite.autorise) {
     return NextResponse.json({ erreur: 'Trop de demandes. Réessayez dans 15 minutes.' }, { status: 429 })
   }
 
   try {
     const body = await req.json()
+    // Même forme que « mot de passe oublié » : un simple email
     const validation = schemaMotDePasseOublie.safeParse(body)
-
     if (!validation.success) {
       return NextResponse.json({ erreur: 'Email invalide' }, { status: 400 })
     }
 
     const { email } = validation.data
-
-    // On renvoie toujours un succès pour ne pas révéler si l'email existe
     const utilisateur = await prisma.user.findUnique({ where: { email } })
 
-    if (utilisateur) {
-      // Seule l'empreinte du token est stockée ; le token brut part par email.
+    // Réponse identique dans tous les cas : ni l'existence du compte ni son
+    // état d'activation ne doivent transparaître.
+    if (utilisateur && !utilisateur.emailVerifie) {
       const token = genererToken()
-      const expiration = new Date(Date.now() + 60 * 60 * 1000) // +1h
 
       await prisma.user.update({
         where: { id: utilisateur.id },
-        data: { tokenReset: token.hache, tokenResetExp: expiration },
+        data: {
+          tokenVerification: token.hache,
+          tokenExpiration: new Date(Date.now() + 24 * 60 * 60 * 1000), // +24h
+        },
       })
 
       try {
-        await envoyerEmailReinitialisation(email, utilisateur.nom, token.brut)
+        await envoyerEmailVerification(email, utilisateur.nom, token.brut)
       } catch (err) {
-        console.error('Erreur envoi email reset:', err)
+        console.error('Erreur renvoi email vérification:', err)
       }
     }
 

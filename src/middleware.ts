@@ -21,8 +21,8 @@ export default withAuth(
   },
   {
     callbacks: {
-      // L'utilisateur est autorisé s'il a un token valide
-      authorized: ({ token }) => !!token,
+      // Token valide ET compte toujours existant en base (cf. callback jwt)
+      authorized: ({ token }) => !!token && !token.supprime,
     },
     pages: {
       signIn: '/login',
@@ -31,9 +31,13 @@ export default withAuth(
 )
 
 // Routes protégées par le middleware
+//
+// `/api` est exclu volontairement : le middleware répond par une redirection
+// 302 vers /login, ce qui renverrait du HTML à un client qui attend du JSON.
+// Chaque route API applique elle-même getServerSession() et répond 401/403.
 export const config = {
   matcher: [
-    // Toutes les routes sauf auth, API auth et assets
-    '/((?!login|register|forgot-password|reinitialiser-mdp|api/auth|_next/static|_next/image|favicon.ico|uploads).*)',
+    // Toutes les pages sauf les pages publiques, les API et les assets
+    '/((?!login|register|forgot-password|reinitialiser-mdp|api|_next/static|_next/image|favicon.ico|uploads).*)',
   ],
 }

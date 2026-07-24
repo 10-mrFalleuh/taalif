@@ -2,12 +2,14 @@
 // Page de réinitialisation du mot de passe
 // Accessible via le lien envoyé par email : /reinitialiser-mdp?token=xxx
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 
-export default function PageReinitialisationMdp() {
+// useSearchParams() force le rendu côté client : le formulaire doit être isolé
+// dans une frontière Suspense, sinon le prérendu du build échoue.
+function FormulaireReinitialisation() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const token = searchParams.get('token')
@@ -163,5 +165,33 @@ export default function PageReinitialisationMdp() {
         </form>
       </div>
     </div>
+  )
+}
+
+// Squelette affiché le temps que le token soit lu depuis l'URL
+function SqueletteReinitialisation() {
+  return (
+    <div className="w-full max-w-md relative z-10">
+      <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-gradient-to-br from-vert-700 to-vert-900 p-8 text-center">
+          <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/20">
+            <span className="font-arabic text-3xl text-white">ط</span>
+          </div>
+          <h1 className="font-serif text-2xl font-bold text-white mb-1">Nouveau mot de passe</h1>
+          <p className="text-vert-200 text-sm">Choisissez un nouveau mot de passe sécurisé</p>
+        </div>
+        <div className="p-8 flex justify-center">
+          <Loader2 className="w-6 h-6 text-vert-500 animate-spin" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function PageReinitialisationMdp() {
+  return (
+    <Suspense fallback={<SqueletteReinitialisation />}>
+      <FormulaireReinitialisation />
+    </Suspense>
   )
 }

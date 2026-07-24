@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { schemaReinitialisationMdp } from '@/lib/validations'
+import { hacherToken } from '@/lib/tokens'
 import bcrypt from 'bcryptjs'
 
 export async function POST(req: NextRequest) {
@@ -18,9 +19,9 @@ export async function POST(req: NextRequest) {
 
     const { token, motDePasse } = validation.data
 
-    // Rechercher l'utilisateur par token de reset
+    // La base ne contient que l'empreinte : on hache le token reçu pour comparer
     const utilisateur = await prisma.user.findUnique({
-      where: { tokenReset: token },
+      where: { tokenReset: hacherToken(token) },
     })
 
     if (!utilisateur) {

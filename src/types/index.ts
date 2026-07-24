@@ -58,6 +58,12 @@ export interface FormulaireActualite {
 // ─── Types de Session NextAuth étendue ────────────────────────────
 
 declare module 'next-auth' {
+  // Le provider Credentials renvoie le rôle : on l'ajoute au type User
+  // pour que le callback jwt() y accède sans cast.
+  interface User {
+    role: string
+  }
+
   interface Session {
     user: {
       id: string
@@ -72,6 +78,10 @@ declare module 'next-auth/jwt' {
   interface JWT {
     id: string
     role: string
+    /** Horodatage de la dernière relecture du rôle en base (ms). */
+    roleActualiseLe?: number
+    /** Vrai si le compte a disparu de la base depuis la connexion. */
+    supprime?: boolean
   }
 }
 

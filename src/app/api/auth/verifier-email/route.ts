@@ -3,6 +3,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { hacherToken } from '@/lib/tokens'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token')
@@ -12,8 +15,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // La base ne contient que l'empreinte : on hache le token reçu pour comparer
     const utilisateur = await prisma.user.findUnique({
-      where: { tokenVerification: token },
+      where: { tokenVerification: hacherToken(token) },
     })
 
     if (!utilisateur) {

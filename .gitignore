@@ -134,3 +134,11 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# ─── Fichiers uploadés ───────────────────────────────────────────
+# Les médias ne doivent pas vivre dans le dépôt : ils gonflent l'historique
+# et ne sont pas un mécanisme de déploiement. Utiliser Cloudinary (cf.
+# .env.example) ou un volume persistant. Les .gitkeep préservent l'arborescence.
+public/uploads/**/*
+!public/uploads/**/.gitkeep
+.DS_Store

@@ -53,6 +53,11 @@ model User {
 }
 
 // ─── Modèles NextAuth ───────────────────────────────────────────
+// Ces trois tables sont celles de l'adapter NextAuth. La stratégie de session
+// actuelle étant JWT (cf. lib/auth.ts), elles restent vides : aucune écriture
+// n'y est faite. Elles sont conservées volontairement — ce sont exactement les
+// tables requises le jour où un provider OAuth (Google, Facebook) sera ajouté,
+// et trois tables vides ne coûtent rien.
 
 model Account {
   id                String  @id @default(cuid())
@@ -113,6 +118,16 @@ model Taalif {
   dateCreation   DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  // Index calqués sur les requêtes réelles :
+  //  • tri par défaut de la bibliothèque et « derniers ajouts » de l'accueil
+  @@index([dateCreation])
+  //  • filtre par format + tri par date (sert aussi le filtre format seul,
+  //    par préfixe le plus à gauche, ainsi que les compteurs du dashboard)
+  @@index([format, dateCreation])
+  //  • filtre par thème
+  @@index([theme])
+  //  • sélection du taalif du jour
+  @@index([estTaalifDuJour])
   @@map("taalifs")
 }
 
@@ -129,6 +144,12 @@ model Actualite {
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
 
+  // Liste publique : where publiee = true, tri par date décroissante
+  @@index([publiee, createdAt])
+  // Filtre par catégorie
+  @@index([categorie])
+  // Liste d'administration : tri par date, sans filtre de publication
+  @@index([createdAt])
   @@map("actualites")
 }
 

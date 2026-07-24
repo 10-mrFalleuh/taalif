@@ -81,16 +81,33 @@ docker run -d \
 
 ### 4. Initialiser le schéma Prisma
 
+Le projet utilise des **migrations versionnées** (`prisma/migrations/`), pas
+`db push`. Sur une base neuve :
+
 ```bash
 # Générer le client Prisma
 npm run db:generate
 
-# Pousser le schéma en base (dev)
-npm run db:push
-
-# Ou créer une migration (prod recommandé)
-npx prisma migrate dev --name init
+# Appliquer toutes les migrations
+npm run db:migrate
 ```
+
+Sur une base **existante** créée autrefois avec `db push`, il faut d'abord la
+rattacher à l'historique des migrations (opération non destructive) :
+
+```bash
+npx prisma migrate resolve --applied 0_init
+npm run db:migrate
+```
+
+Pour créer une nouvelle migration après modification de `schema.prisma` :
+
+```bash
+npm run db:migrate:dev -- --name description_du_changement
+```
+
+Recherche textuelle : voir `prisma/sql/recherche-trigramme.sql`, à appliquer
+manuellement quand le corpus dépasse quelques centaines de taalifs.
 
 ### 5. Seed – Créer l'admin et les données d'exemple
 
@@ -121,10 +138,12 @@ npm run dev          # Serveur de développement (hot reload)
 npm run build        # Build de production
 npm run start        # Démarrer en production
 npm run lint         # ESLint
-npm run db:generate  # Générer le client Prisma
-npm run db:push      # Pousser le schéma en DB (dev, sans migration)
-npm run db:seed      # Insérer les données initiales
-npm run db:studio    # Interface graphique Prisma Studio
+npm run db:generate     # Générer le client Prisma
+npm run db:migrate      # Appliquer les migrations en attente (dev et prod)
+npm run db:migrate:dev  # Créer une migration après édition du schéma
+npm run db:push         # Pousser le schéma sans migration (dépannage seulement)
+npm run db:seed         # Insérer les données initiales
+npm run db:studio       # Interface graphique Prisma Studio
 ```
 
 ---

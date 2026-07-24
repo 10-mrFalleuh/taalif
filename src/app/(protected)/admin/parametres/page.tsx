@@ -5,6 +5,9 @@ import { FormulaireParametres } from '@/components/admin/FormulaireParametres'
 import Link from 'next/link'
 import { ArrowLeft, Settings } from 'lucide-react'
 
+// Rendu à la demande : les paramètres sont éditables depuis cette page même.
+export const dynamic = 'force-dynamic'
+
 export default async function PageAdminParametres() {
   const [parametres, taalifs] = await Promise.all([
     prisma.parametre.findFirst({ orderBy: { createdAt: 'desc' } }),

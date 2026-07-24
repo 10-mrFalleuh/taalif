@@ -8,6 +8,10 @@ import Image from 'next/image'
 import { CardTaalif } from '@/components/taalif/CardTaalif'
 import { BookOpen, Music, Video, ArrowRight, Star } from 'lucide-react'
 
+// Rendu à la demande : sans cela, les statistiques et le taalif du jour
+// seraient figés au moment du build.
+export const dynamic = 'force-dynamic'
+
 // Récupération des données côté serveur
 async function getDonneesAccueil() {
   const [parametres, taalifDuJour, derniersAjouts, stats] = await Promise.all([

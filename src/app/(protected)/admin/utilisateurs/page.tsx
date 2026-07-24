@@ -6,6 +6,9 @@ import { formatDate } from '@/lib/utils'
 import { BoutonRoleUtilisateur } from '@/components/admin/BoutonRoleUtilisateur'
 import { Users, ArrowLeft, CheckCircle2, XCircle } from 'lucide-react'
 
+// Rendu à la demande : la liste et les rôles changent en permanence.
+export const dynamic = 'force-dynamic'
+
 export default async function PageAdminUtilisateurs() {
   const utilisateurs = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },

@@ -2,22 +2,48 @@
 // Page de connexion
 // Formulaire email + mot de passe avec NextAuth
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2, MailCheck } from 'lucide-react'
+import { securiserRedirection } from '@/lib/redirection'
+import { MSG_EMAIL_NON_VERIFIE } from '@/lib/messages'
 
-export default function PageConnexion() {
+// useSearchParams() force le rendu côté client : le formulaire doit être isolé
+// dans une frontière Suspense, sinon le prérendu du build échoue.
+function FormulaireConnexion() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') ?? '/'
+  // Neutralise les redirections ouvertes : ?callbackUrl=https://evil.com
+  // est ramené à un chemin relatif du site.
+  const callbackUrl = securiserRedirection(searchParams.get('callbackUrl') ?? '/')
   const erreurParam = searchParams.get('error')
 
   const [formulaire, setFormulaire] = useState({ email: '', motDePasse: '' })
   const [afficherMdp, setAfficherMdp] = useState(false)
   const [chargement, setChargement] = useState(false)
   const [erreur, setErreur] = useState(erreurParam ? 'Session expirée. Veuillez vous reconnecter.' : '')
+  const [renvoiEnCours, setRenvoiEnCours] = useState(false)
+  const [renvoiFait, setRenvoiFait] = useState(false)
+
+  // Renvoi de l'email d'activation : sans cela, un utilisateur dont l'email
+  // de vérification n'est jamais arrivé reste bloqué définitivement.
+  const renvoyerVerification = async () => {
+    setRenvoiEnCours(true)
+    try {
+      await fetch('/api/auth/renvoyer-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formulaire.email }),
+      })
+      setRenvoiFait(true)
+    } catch {
+      setErreur('Impossible de contacter le serveur.')
+    } finally {
+      setRenvoiEnCours(false)
+    }
+  }
 
   const soumettre = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -64,6 +90,25 @@ export default function PageConnexion() {
           {erreur && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               {erreur}
+              {/* Compte non activé : proposer le renvoi de l'email */}
+              {erreur === MSG_EMAIL_NON_VERIFIE && !renvoiFait && (
+                <button
+                  type="button"
+                  onClick={renvoyerVerification}
+                  disabled={renvoiEnCours}
+                  className="mt-2 flex items-center gap-1.5 text-red-800 font-medium underline underline-offset-2 hover:text-red-900 disabled:opacity-60"
+                >
+                  {renvoiEnCours ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MailCheck className="w-3.5 h-3.5" />}
+                  Renvoyer l&apos;email de vérification
+                </button>
+              )}
+            </div>
+          )}
+
+          {renvoiFait && (
+            <div className="flex items-start gap-2 bg-vert-50 border border-vert-200 text-vert-800 px-4 py-3 rounded-lg text-sm">
+              <MailCheck className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>Si cette adresse correspond à un compte non activé, un nouvel email vient d&apos;être envoyé.</span>
             </div>
           )}
 
@@ -144,5 +189,33 @@ export default function PageConnexion() {
         </form>
       </div>
     </div>
+  )
+}
+
+// Squelette affiché le temps que les paramètres d'URL soient disponibles
+function SqueletteConnexion() {
+  return (
+    <div className="w-full max-w-md relative z-10">
+      <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-gradient-to-br from-vert-700 to-vert-900 p-8 text-center">
+          <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/20">
+            <span className="font-arabic text-3xl text-white">ط</span>
+          </div>
+          <h1 className="font-serif text-2xl font-bold text-white mb-1">TAALIF</h1>
+          <p className="text-vert-200 text-sm">Connectez-vous pour accéder aux taalifs</p>
+        </div>
+        <div className="p-8 flex justify-center">
+          <Loader2 className="w-6 h-6 text-vert-500 animate-spin" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function PageConnexion() {
+  return (
+    <Suspense fallback={<SqueletteConnexion />}>
+      <FormulaireConnexion />
+    </Suspense>
   )
 }

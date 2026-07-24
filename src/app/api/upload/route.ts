@@ -1,18 +1,19 @@
-// API Route – Upload de fichiers audio/vidéo
+// API Route – Upload de fichiers audio/vidéo/image
 // POST /api/upload
-// En dev : stockage local dans public/uploads
-// En prod : prévoir Cloudinary ou S3
+// La destination (Cloudinary ou disque local) est choisie par lib/stockage.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { detecterType, type FamilleFichier } from '@/lib/fichiers'
+import { enregistrerFichier } from '@/lib/stockage'
+import crypto from 'crypto'
 
-// Types de fichiers autorisés
-const TYPES_AUTORISES = {
-  audio: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/mp4'],
-  video: ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'],
+// Types réellement acceptés, par famille. La vérification porte sur le type
+// détecté dans le contenu du fichier, pas sur celui déclaré par le client.
+const TYPES_AUTORISES: Record<FamilleFichier, string[]> = {
+  audio: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4'],
+  video: ['video/mp4', 'video/webm', 'video/quicktime'],
   image: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
 }
 
@@ -31,43 +32,46 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
     const fichier = formData.get('fichier') as File | null
-    const type = (formData.get('type') as string)?.toLowerCase() as 'audio' | 'video' | 'image'
+    const type = (formData.get('type') as string)?.toLowerCase() as FamilleFichier
 
     if (!fichier) return NextResponse.json({ erreur: 'Aucun fichier fourni' }, { status: 400 })
     if (!['audio', 'video', 'image'].includes(type)) {
       return NextResponse.json({ erreur: 'Type de fichier invalide' }, { status: 400 })
     }
 
-    // Vérification du type MIME
-    const typesAutorises = TYPES_AUTORISES[type]
-    if (!typesAutorises.includes(fichier.type)) {
-      return NextResponse.json({ erreur: `Type MIME non autorisé : ${fichier.type}` }, { status: 400 })
-    }
-
-    // Vérification de la taille
+    // Vérification de la taille avant de charger le contenu en mémoire
     if (fichier.size > TAILLE_MAX[type]) {
       const maxMo = TAILLE_MAX[type] / (1024 * 1024)
       return NextResponse.json({ erreur: `Fichier trop volumineux. Maximum : ${maxMo} Mo` }, { status: 400 })
     }
 
-    // Nom de fichier sécurisé (sans espaces, sans caractères spéciaux)
-    const extension = fichier.name.split('.').pop()?.toLowerCase() ?? 'bin'
-    const nomFichier = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`
-    const sousRep = type === 'image' ? 'images' : type === 'audio' ? 'audio' : 'video'
-
-    // Dossier de destination
-    const repDestination = path.join(process.cwd(), 'public', 'uploads', sousRep)
-    await mkdir(repDestination, { recursive: true })
-
-    // Écriture du fichier
     const buffer = Buffer.from(await fichier.arrayBuffer())
-    const cheminFichier = path.join(repDestination, nomFichier)
-    await writeFile(cheminFichier, buffer)
 
-    // URL publique
-    const url = `/uploads/${sousRep}/${nomFichier}`
+    // Identification par signature binaire : ni le type MIME déclaré ni le nom
+    // du fichier ne sont pris en compte. Une signature inconnue est rejetée.
+    const detecte = detecterType(buffer)
+    if (!detecte) {
+      return NextResponse.json(
+        { erreur: 'Format de fichier non reconnu ou non autorisé.' },
+        { status: 400 }
+      )
+    }
+    if (detecte.famille !== type || !TYPES_AUTORISES[type].includes(detecte.mime)) {
+      return NextResponse.json(
+        { erreur: `Le contenu du fichier est de type ${detecte.mime}, incompatible avec un envoi ${type}.` },
+        { status: 400 }
+      )
+    }
 
-    return NextResponse.json({ url, nom: fichier.name, taille: fichier.size })
+    // Nom de fichier entièrement généré côté serveur : l'extension vient de la
+    // signature détectée, ce qui interdit d'écrire un .html ou un .svg servi
+    // ensuite sur le même domaine.
+    const nomFichier = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${detecte.extension}`
+
+    // Cloudinary si configuré, disque local sinon
+    const url = await enregistrerFichier(buffer, nomFichier, type)
+
+    return NextResponse.json({ url, nom: nomFichier, taille: fichier.size, type: detecte.mime })
   } catch (err) {
     console.error('Erreur upload:', err)
     return NextResponse.json({ erreur: 'Erreur lors de l\'upload' }, { status: 500 })

@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { BookOpen, Music, Video, Newspaper, Users, Settings, ArrowRight, TrendingUp, Download } from 'lucide-react'
 
+// Rendu à la demande : les compteurs doivent refléter l'état réel de la base.
+export const dynamic = 'force-dynamic'
+
 async function getStats() {
   const [nbTaalifs, nbAudio, nbVideo, nbTexte, nbActualites, nbUsers, totalTelechargements] = await Promise.all([
     prisma.taalif.count(),

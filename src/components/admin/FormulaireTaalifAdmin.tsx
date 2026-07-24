@@ -32,6 +32,9 @@ export function FormulaireTaalifAdmin({ taalif }: PropsFormulaire) {
     texteFr: taalif?.texteFr ?? '',
     format: taalif?.format ?? 'TEXTE',
     fichierUrl: taalif?.fichierUrl ?? '',
+    // Une image auto-générée (data:image/svg+xml) est traitée comme absente :
+    // on réaffiche la zone d'upload plutôt qu'un base64 illisible.
+    imageUrl: taalif?.imageUrl?.startsWith('data:') ? '' : (taalif?.imageUrl ?? ''),
     auteur: taalif?.auteur ?? 'Cheikh Ahmadou Kara Mbacké',
     theme: taalif?.theme ?? '',
     tags: taalif?.tags.join(', ') ?? '',

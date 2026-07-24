@@ -6,30 +6,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { schemaInscription } from '@/lib/validations'
 import { envoyerEmailVerification } from '@/lib/email'
+import { verifierLimite, extraireIp } from '@/lib/rate-limit'
+import { genererToken } from '@/lib/tokens'
 import bcrypt from 'bcryptjs'
-import crypto from 'crypto'
 
-// Simple rate limiting en mémoire (remplacer par Redis en prod)
-const tentatives = new Map<string, { count: number; dernier: number }>()
 const LIMITE_TENTATIVES = 5
 const FENETRE_MS = 15 * 60 * 1000 // 15 min
 
-function verifierRateLimit(ip: string): boolean {
-  const maintenant = Date.now()
-  const record = tentatives.get(ip)
-  if (!record || maintenant - record.dernier > FENETRE_MS) {
-    tentatives.set(ip, { count: 1, dernier: maintenant })
-    return true
-  }
-  if (record.count >= LIMITE_TENTATIVES) return false
-  record.count++
-  return true
-}
-
 export async function POST(req: NextRequest) {
-  // Rate limiting
-  const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
-  if (!verifierRateLimit(ip)) {
+  // Rate limiting (partagé, adossé à Redis si configuré)
+  const ip = extraireIp(req.headers)
+  const limite = await verifierLimite(`inscription:${ip}`, LIMITE_TENTATIVES, FENETRE_MS)
+  if (!limite.autorise) {
     return NextResponse.json({ erreur: 'Trop de tentatives. Réessayez dans 15 minutes.' }, { status: 429 })
   }
 
@@ -58,30 +46,34 @@ export async function POST(req: NextRequest) {
     // Hash du mot de passe (coût 12 = bon équilibre sécurité/perf)
     const motDePasseHashe = await bcrypt.hash(motDePasse, 12)
 
-    // Génération du token de vérification email (64 bytes aléatoires)
-    const tokenVerification = crypto.randomBytes(32).toString('hex')
+    // Génération du token de vérification email (32 octets aléatoires).
+    // Seule l'empreinte est stockée ; le token brut part par email.
+    const token = genererToken()
     const tokenExpiration = new Date(Date.now() + 24 * 60 * 60 * 1000) // +24h
+
+    // En développement, l'email est auto-vérifié pour ne pas dépendre du SMTP.
+    const autoVerifie = process.env.NODE_ENV === 'development'
 
     // Création de l'utilisateur
     const utilisateur = await prisma.user.create({
-  data: {
-    nom,
-    email,
-    motDePasse: motDePasseHashe,
-    // En développement : email auto-vérifié
-    // En production : mettre emailVerifie: false et envoyer le token
-    emailVerifie: process.env.NODE_ENV === 'development',
-    tokenVerification: process.env.NODE_ENV === 'development' ? null : tokenVerification,
-    tokenExpiration: process.env.NODE_ENV === 'development' ? null : tokenExpiration,
-  },
-})
+      data: {
+        nom,
+        email,
+        motDePasse: motDePasseHashe,
+        emailVerifie: autoVerifie,
+        tokenVerification: autoVerifie ? null : token.hache,
+        tokenExpiration: autoVerifie ? null : tokenExpiration,
+      },
+    })
 
-    // Envoi de l'email de vérification (non bloquant si ça échoue)
-    try {
-      await envoyerEmailVerification(email, nom, tokenVerification)
-    } catch (erreurEmail) {
-      console.error('Erreur envoi email vérification:', erreurEmail)
-      // On ne fait pas échouer l'inscription pour ça
+    // Envoi de l'email de vérification (non bloquant si ça échoue :
+    // l'utilisateur pourra le redemander via /api/auth/renvoyer-verification)
+    if (!autoVerifie) {
+      try {
+        await envoyerEmailVerification(email, nom, token.brut)
+      } catch (erreurEmail) {
+        console.error('Erreur envoi email vérification:', erreurEmail)
+      }
     }
 
     return NextResponse.json(
